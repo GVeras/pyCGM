@@ -66,27 +66,19 @@ class TestPycgmStaticAxis():
          -0.09966865249116204)])
     def test_staticCalculationHead(self, head, expected):
         """
-       This test provides coverage of the staticCalculationHead function in pycgmStatic.py, defined as staticCalculationHead(frame, head)
+        This test provides coverage of the staticCalculationHead function in pycgmStatic.py, defined as staticCalculationHead(frame, head)
 
-       This test takes 2 parameters:
-       head: array containing the head axis and head origin
-       expected: the expected result from calling staticCalculationHead on head
+        This test takes 2 parameters:
+        head: array containing the head axis and head origin
+        expected: the expected result from calling staticCalculationHead on head
 
-       This test is checking to make sure the head offset angle is calculated correctly given the input parameters.
-       The test checks to see that the correct values in expected are updated per each input parameter added:
-          When values are only added to head[0][0], expected should return a value
-          When values are only added to head[0][1], expected should return np.nan
-          When values are only added to head[0][2], expected should return 0
-          When values are only added to head[1], expected should return a value
-          When multiple of these values exist, they will all play a part in the final value.
-        
-        Given the positions of the head axis and origin, the x,y,z axis are the positions of the offset axis are 
-        defined as head axis (component) - head origin (component) for each x, y, z component. 
-        The offset axis is then rotated in XYZ ordered matrix  where the Y angle (the offset) is 
-        obtained using inverse trigonometry.
+        This function first calculates the x, y, z axes of the head by subtracting the given head axes by the head
+        origin. It then calls headoffCalc on this head axis and a global axis to find the head offset angles.
 
-        Lastly, it checks that the resulting output is correct when head is composed of lists of ints, numpy arrays of
-        ints, lists of floats, and numpy arrays of floats.
+        This test ensures that:
+        - the head axis and the head origin both have an effect on the final offset angle
+        - the resulting output is correct when head is composed of lists of ints, numpy arrays of ints, lists of
+        floats, and numpy arrays of floats.
        """
         result = pycgmStatic.staticCalculationHead(None, head)
         np.testing.assert_almost_equal(result, expected, rounding_precision)
@@ -988,6 +980,22 @@ class TestPycgmStaticAxis():
          [np.array([0, 0, 0]), np.array([0, 0, 0]),
           [[nan_3d, nan_3d, nan_3d],
            [nan_3d, nan_3d, nan_3d]]]),
+        # Testing when values are added to frame['RTOE']
+        ({'RTOE': np.array([-7, 3, -8]), 'LTOE': np.array([0, 0, 0])},
+         [np.array([0, 0, 0]), np.array([0, 0, 0]),
+          [[np.array(rand_coor), np.array([0, 0, 0]), np.array(rand_coor)],
+           [np.array(rand_coor), np.array([0, 0, 0]), np.array(rand_coor)]]],
+         [np.array([-7, 3, -8]), np.array([0, 0, 0]),
+          [[nan_3d, nan_3d, [-6.36624977770237, 2.7283927618724446, -7.275714031659851]],
+           [nan_3d, nan_3d, nan_3d]]]),
+        # Testing when values are added to frame['LTOE']
+        ({'RTOE': np.array([0, 0, 0]), 'LTOE': np.array([8, 0, -8])},
+         [np.array([0, 0, 0]), np.array([0, 0, 0]),
+          [[np.array(rand_coor), np.array([0, 0, 0]), np.array(rand_coor)],
+           [np.array(rand_coor), np.array([0, 0, 0]), np.array(rand_coor)]]],
+         [np.array([0, 0, 0]), np.array([8, 0, -8]),
+          [[nan_3d, nan_3d, nan_3d],
+           [nan_3d, nan_3d, [7.292893218813452, 0.0, -7.292893218813452]]]]),
         # Testing when values are added to frame
         ({'RTOE': np.array([-7, 3, -8]), 'LTOE': np.array([8, 0, -8])},
          [np.array([0, 0, 0]), np.array([0, 0, 0]),
@@ -1075,19 +1083,34 @@ class TestPycgmStaticAxis():
         This test takes 3 parameters:
         frame: dictionaries of marker lists.
         ankle_JC: array of ankle_JC each x,y,z position
-        expected: the expected result from calling uncorrect_footaxis on frame and ankle_JC
 
-        This test is checking to make sure the anatomically incorrect foot joint center and axis is calculated correctly
-        given the input parameters. 
+        expected: the expected result from calling uncorrect_footaxis on frame and ankle_JC, which should be the
+        anatomically incorrect foot axis
 
-        The uncorrect foot joint axes for both feet are calculated using the following calculations:
-            z-axis = ankle joint center - TOE marker
-            y-flex = ankle joint center flexion - ankle joint center
-            x-axis =  y-flex \cross z-axis
-            y-axis = z-axis cross x-axis
+        Given a marker RTOE and the ankle JC, the right anatomically incorrect foot axis is calculated with:
 
-        Lastly, it checks that the resulting output is correct when frame and ankle_JC are composed of lists of ints,
+        .. math::
+            R = [R_x + ROrigin_x, R_y + ROrigin_y, R_z + ROrigin_z]
+
+        where :math:`ROrigin_x` is the x coor of the foot axis's origin gotten from frame['RTOE']
+
+        :math:`R_x` is the unit vector of :math:`Yflex_R \times R_z`
+
+        :math:`R_y` is the unit vector of :math:`R_z \times R_x`
+
+        :math:`R_z` is the unit vector of the axis from right toe to right ankle JC
+
+        :math:`Yflex_R` is the unit vector of the axis from right ankle flexion to right ankle JC
+
+        The same calculation applies for the left anatomically incorrect foot axis by replacing all the right values
+        with left values
+
+        This unit test ensures that:
+        - the markers for RTOE and LTOE only effect either the right or the left axis
+        - ankle_JC_R and ankle_JC_L only effect either the right or the left axis
+        - the resulting output is correct when frame and ankle_JC are composed of lists of ints,
         numpy arrays of ints, lists of floats, and numpy arrays of floats.
+
         """
         result = pycgmStatic.uncorrect_footaxis(frame, ankle_JC)
         np.testing.assert_almost_equal(result[0], expected[0], rounding_precision)
@@ -1185,7 +1208,25 @@ class TestPycgmStaticAxis():
          [np.array([1, 4, -6]), np.array([4, 2, 2]),
           np.array([[[1.465329458584979, 4.0, -6.885137557090992], [1.8851375570909927, 4.0, -5.534670541415021], [1.0, 3.0, -6.0]],
                     [[4.532940727667331, 1.7868237089330676, 2.818858992574645], [3.2397085122726565, 2.304116595090937, 2.573994730184553], [3.6286093236458963, 1.0715233091147405, 2.0]]])]),
-        # Testing that when thorax, shoulderJC, and wand are lists of ints
+        # Testing with differing values for right: RHEE, RTOE, ankle_JC[0], and ankle_JC[2][0][1]
+        ({'RHEE': [7, 3, 2], 'LHEE': [2, -3, -1], 'RTOE': [3, 7, -2], 'LTOE': [4, 2, 2]},
+         [np.array([-8, 9, 9]), np.array([5, 7, 1]),
+          [[np.array(rand_coor), np.array([-4, -2, -1]), np.array(rand_coor)],
+           [np.array(rand_coor), np.array([-9, 2, 9]), np.array(rand_coor)]]],
+         {'RightSoleDelta': 0.64, 'LeftSoleDelta': 0.19},
+         [np.array([3, 7, -2]), np.array([4, 2, 2]),
+          np.array([[[2.3588723285123567, 6.358872328512357, -1.578205479284445], [2.7017462341347014, 6.701746234134702, -2.9066914482305077], [3.7071067811865475, 6.292893218813452, -2.0]],
+                    [[4.532940727667331, 1.7868237089330676, 2.818858992574645], [3.2397085122726565, 2.304116595090937, 2.573994730184553], [3.6286093236458963, 1.0715233091147405, 2.0]]])]),
+        # Testing with differing values for right: LHEE, LTOE, ankle_JC[1], and ankle_JC[2][1][1]
+        ({'RHEE': [1, -4, -9], 'LHEE': [5, -4, -7], 'RTOE': [1, 4, -6], 'LTOE': [5, 3, 4]},
+         [np.array([-5, -5, -1]), np.array([-4, 0, -9]),
+          [[np.array(rand_coor), np.array([9, 3, 7]), np.array(rand_coor)],
+           [np.array(rand_coor), np.array([6, 2, 6]), np.array(rand_coor)]]],
+         {'RightSoleDelta': 0.64, 'LeftSoleDelta': 0.19},
+         [np.array([1, 4, -6]), np.array([5, 3, 4]),
+          np.array([[[1.465329458584979, 4.0, -6.885137557090992], [1.8851375570909927, 4.0, -5.534670541415021], [1.0, 3.0, -6.0]],
+                    [[5.828764328538102, 3.0, 3.4404022089546915], [5.5595977910453085, 3.0, 4.828764328538102], [5.0, 2.0, 4.0]]])]),
+        # Testing that when thorax and ankle_JC are lists of ints and vsk values are ints
         ({'RHEE': [1, -4, -9], 'LHEE': [2, -3, -1], 'RTOE': [1, 4, -6], 'LTOE': [4, 2, 2]},
          [[-5, -5, -1], [5, 7, 1],
           [[rand_coor, [9, 3, 7], rand_coor],
@@ -1194,7 +1235,7 @@ class TestPycgmStaticAxis():
          [np.array([1, 4, -6]), np.array([4, 2, 2]),
           np.array([[[1.4472135954999579, 4.0, -6.8944271909999157], [1.894427190999916, 4.0, -5.5527864045000417], [1.0, 3.0, -6.0]],
                     [[4.5834323811883104, 1.7666270475246759, 2.7779098415844139], [3.2777288444786272, 2.2889084622085494, 2.6283759053035944], [3.6286093236458963, 1.0715233091147407, 2.0]]])]),
-        # Testing that when thorax, shoulderJC and wand are numpy arrays of ints
+        # Testing that when thorax and ankle_JC are numpy arrays of ints and vsk values are ints
         ({'RHEE': np.array([1, -4, -9], dtype='int'), 'LHEE': np.array([2, -3, -1], dtype='int'),
           'RTOE': np.array([1, 4, -6], dtype='int'), 'LTOE': np.array([4, 2, 2], dtype='int')},
          [np.array([-5, -5, -1], dtype='int'), np.array([5, 7, 1], dtype='int'),
@@ -1204,7 +1245,7 @@ class TestPycgmStaticAxis():
          [np.array([1, 4, -6]), np.array([4, 2, 2]),
           np.array([[[1.4472135954999579, 4.0, -6.8944271909999157], [1.894427190999916, 4.0, -5.5527864045000417], [1.0, 3.0, -6.0]],
                     [[4.5834323811883104, 1.7666270475246759, 2.7779098415844139], [3.2777288444786272, 2.2889084622085494, 2.6283759053035944], [3.6286093236458963, 1.0715233091147407, 2.0]]])]),
-        # Testing that when thorax, shoulderJC and wand are lists of floats
+        # Testing that when thorax and ankle_JC are lists of floats and vsk values are floats
         ({'RHEE': [1.0, -4.0, -9.0], 'LHEE': [2.0, -3.0, -1.0], 'RTOE': [1.0, 4.0, -6.0], 'LTOE': [4.0, 2.0, 2.0]},
          [[-5.0, -5.0, -1.0], [5.0, 7.0, 1.0],
           [[rand_coor, [9.0, 3.0, 7.0], rand_coor],
@@ -1213,7 +1254,7 @@ class TestPycgmStaticAxis():
          [np.array([1, 4, -6]), np.array([4, 2, 2]),
           np.array([[[1.4472135954999579, 4.0, -6.8944271909999157], [1.894427190999916, 4.0, -5.5527864045000417], [1.0, 3.0, -6.0]],
                     [[4.5834323811883104, 1.7666270475246759, 2.7779098415844139], [3.2777288444786272, 2.2889084622085494, 2.6283759053035944], [3.6286093236458963, 1.0715233091147407, 2.0]]])]),
-        # Testing that when thorax, shoulderJC and wand are numpy arrays of floats
+        # Testing that when thorax and ankle_JC are numpy arrays of floats and vsk values are floats
         ({'RHEE': np.array([1.0, -4.0, -9.0], dtype='float'), 'LHEE': np.array([2.0, -3.0, -1.0], dtype='float'),
           'RTOE': np.array([1.0, 4.0, -6.0], dtype='float'), 'LTOE': np.array([4.0, 2.0, 2.0], dtype='float')},
          [np.array([-5.0, -5.0, -1.0], dtype='float'), np.array([5.0, 7.0, 1.0], dtype='float'),
@@ -1231,22 +1272,33 @@ class TestPycgmStaticAxis():
         frame: dictionaries of marker lists.
         ankle_JC: array of ankle_JC each x,y,z position
         vsk: dictionary containing subject measurements from a VSK file
-        expected: the expected result from calling rotaxis_footflat on frame, ankle_JC and vsk
+        expected: the expected result from calling rotaxis_footflat on frame, ankle_JC and vsk, which should be the
+        anatomically correct foot axis when foot is flat.
 
-        This test is checking to make sure the foot joint center for flat feet is calculated correctly given the input
-        parameters. The test checks to see that the correct values in expected are updated per each input parameter added:
-            When values are only added to frame, expected[0] and expected[1] should be updated.
-            When values are only added to ankle_JC, nothing should be updated. If values are already added to frame, then
-            adding values to ankle_JC should update expected[2].
-            When values are only added to vsk, nothing should be updated. If values are already added to frame, then
-            adding values to ankle_JC should update expected[2].
-        
-        The correct foot joint axes for both directions are calculated using the following calculations:
-            z-axis = HEE - TOE markers ( for flat feet the z axis points at the same height for the TOE markers, from TOE to AJC)
-            y-flex = ankle joint center flexion - ankle joint center
-            x-axis =  y-flex \cross z-axis
-            y-axis = z-axis \cross x-axis
+        Given the right ankle JC and the markers :math:`TOE_R` and :math:`HEE_R`, the right anatomically correct foot
+        axis is calculated with:
 
+        .. math::
+            R = [R_x + ROrigin_x, R_y + ROrigin_y, R_z + ROrigin_z]
+
+        where :math:`ROrigin_x` is the x coor of the foot axis's origin gotten from frame['RTOE']
+
+        :math:`R_x` is the unit vector of :math:`(AnkleFlexion_R - AnkleJC_R) \times R_z`
+
+        :math:`R_y` is the unit vector of :math:`R_z \times R_x`
+
+        :math:`R_z` is the unit vector of :math:`(A \times (HEE_R - TOE_R)) \times A`
+
+        A is the unit vector of :math:`(HEE_R - TOE_R) \times (AnkleJC_R - TOE_R)`
+
+        The same calculation applies for the left anatomically correct foot axis by replacing all the right values
+        with left values
+
+        This unit test ensures that:
+        - the markers for RTOE, LTOE, RHEE, and LHEE only effect either the right or the left axis
+        - ankle_JC_R and ankle_JC_L only effect either the right or the left axis
+        - the resulting output is correct when frame and ankle_JC are composed of lists of ints,
+        numpy arrays of ints, lists of floats, and numpy arrays of floats.
         """
         result = pycgmStatic.rotaxis_footflat(frame, ankle_JC, vsk)
         np.testing.assert_almost_equal(result[0], expected[0], rounding_precision)
@@ -1332,6 +1384,24 @@ class TestPycgmStaticAxis():
          [np.array([5, -2, -2]), np.array([-2, -7, -1]),
           [[[5.049326362366699, -2.8385481602338833, -1.4574100139663109], [5.987207376506346, -1.8765990779367068, -1.8990356092209417], [4.848380391284219, -1.4693313694947676, -1.1660921520632064]],
            [[-2.446949206712144, -7.0343807082086265, -1.8938984134242876], [-2.820959061315946, -7.381159564182403, -0.5748604861042421], [-2.355334527259351, -6.076130229125688, -0.8578661890962597]]]]),
+        # Testing with differing values for right: RHEE, RTOE, ankle_JC[0], and ankle_JC[2][0][1]
+        ({'RTOE': np.array([-2, 9, -1]), 'LTOE': np.array([-2, -7, -1]),
+          'RHEE': np.array([-1, -4, 4]), 'LHEE': np.array([-7, 6, 1])},
+         [np.array([5, -1, -5]), np.array([3, 6, -3]),
+          [[np.array(nan_3d), np.array([-7, -8, -5]), np.array(nan_3d)],
+           [np.array(nan_3d), np.array([2, -7, -2]), np.array(nan_3d)]]],
+         [np.array([-2, 9, -1]), np.array([-2, -7, -1]),
+          [[[-2.1975353004951486, 9.33863194370597, -0.0800498862654514], [-2.977676633621816, 8.86339202060183, -1.1596454197108794], [-1.9283885125960567, 8.069050663748737, -0.6419425629802835]],
+           [[-2.446949206712144, -7.0343807082086265, -1.8938984134242876], [-2.820959061315946, -7.381159564182403, -0.5748604861042421], [-2.355334527259351, -6.076130229125688, -0.8578661890962597]]]]),
+        # Testing with differing values for left: LHEE, LTOE, ankle_JC[1], and ankle_JC[2][1][1]
+        ({'RTOE': np.array([5, -2, -2]), 'LTOE': np.array([5, 4, -4]),
+          'RHEE': np.array([3, 5, 9]), 'LHEE': np.array([-1, 6, 9])},
+         [np.array([-8, 6, 2]), np.array([0, -8, -2]),
+          [[np.array(nan_3d), np.array([-7, 8, 5]), np.array(nan_3d)],
+           [np.array(nan_3d), np.array([-4, -9, -1]), np.array(nan_3d)]]],
+         [np.array([5, -2, -2]), np.array([5, 4, -4]),
+          [[[5.049326362366699, -2.8385481602338833, -1.4574100139663109], [5.987207376506346, -1.8765990779367068, -1.8990356092209417], [4.848380391284219, -1.4693313694947676, -1.1660921520632064]],
+           [[4.702195658033984, 4.913266648695782, -4.277950719168281], [4.140311818111685, 3.6168482384235783, -4.3378327360136195], [4.584971321680356, 4.138342892773215, -3.1007711969741028]]]]),
         # Testing that when thorax, shoulderJC, and wand are lists of ints
         ({'RTOE': [5, -2, -2], 'LTOE': [-2, -7, -1], 'RHEE': [3, 5, 9], 'LHEE': [-7, 6, 1]},
          [[-8, 6, 2], [3, 6, -3],
@@ -1373,17 +1443,33 @@ class TestPycgmStaticAxis():
         This test takes 3 parameters:
         frame: dictionaries of marker lists.
         ankle_JC: array of ankle_JC each x,y,z position
-        expected: the expected result from calling rotaxis_nonfootflat on frame and ankle_JC
+        expected: the expected result from calling rotaxis_footflat on frame, ankle_JC and vsk, which should be the
+        anatomically correct foot axis when foot is not flat.
 
-        This test is checking to make sure the foot joint center for non-flat feet is calculated correctly given the input
-        parameters. 
+        Given the right ankle JC and the markers :math:`TOE_R` and :math:`HEE_R , the right anatomically correct foot
+        axis is calculated with:
 
-        The foot joint axes for both directions are calculated using the following calculations:
-            z-axis = HEE - TOE markers
-            y-flex = ankle joint center flexion - ankle joint center
-            x-axis =  y-flex \cross z-axis
-            y-axis = z-axis \cross x-axis
+        .. math::
+        R is [R_x + ROrigin_x, R_y + ROrigin_y, R_z + ROrigin_z]
 
+        where :math:`ROrigin_x` is the x coor of the foot axis's origin gotten from frame['RTOE']
+
+        :math:`R_x` is the unit vector of :math:`YFlex_R \times R_z`
+
+        :math:`R_y` is the unit vector of :math:`R_z \times R_x`
+
+        :math:`R_z` is the unit vector of :math:`(HEE_R - TOE_R)`
+
+        :math:`YFlex_R` is the unit vector of :math:`(AnkleFlexion_R - AnkleJC_R)`
+
+        The same calculation applies for the left anatomically correct foot axis by replacing all the right values
+        with left values
+
+        This unit test ensures that:
+        - the markers for RTOE, LTOE, RHEE, and LHEE only effect either the right or the left axis
+        - ankle_JC_R and ankle_JC_L only effect either the right or the left axis
+        - the resulting output is correct when frame and ankle_JC are composed of lists of ints,
+        numpy arrays of ints, lists of floats, and numpy arrays of floats.
         """
         result = pycgmStatic.rotaxis_nonfootflat(frame, ankle_JC)
         np.testing.assert_almost_equal(result[0], expected[0], rounding_precision)
