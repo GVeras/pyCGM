@@ -1,5 +1,6 @@
 import numpy as np
 import IO
+import time
 import multiprocessing as mp
 
 class CGM:
@@ -59,6 +60,7 @@ class CGM:
 
     @staticmethod
     def pelvis_calc(pelv):
+        time.sleep(0.001)
         return pelv
 
     @staticmethod
@@ -96,19 +98,18 @@ class CGM:
 
         # Data in this case would be changed upon furhter implementation.
         length = int(len(data)/ncores)
-
         # Hold all the processes together for asynchronize running and joining
         processes = []
         IO.writeMem(methods, mappings)
         
         for c in range(ncores):
-            first = c * length
-            last = (c+1) * length
+            start = c * length
+            end = (c+1) * length
 
             if c == ncores - 1:
-                last = len(data)
+                end = len(data)
 
-            proc = mp.Process(target=CGM.calc, args=[first, last, data])
+            proc = mp.Process(target=CGM.calc, args=[start, end, data])
             proc.start()
             processes.append(proc)
 
