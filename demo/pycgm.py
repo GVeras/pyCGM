@@ -120,7 +120,8 @@ class CGM:
 
         for process in processes:
             process.join()
-    
+        
+        return result
             
 
 
