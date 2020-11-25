@@ -1,4 +1,5 @@
 from pycgm import *
+import time 
 
 # Demonstrates basic case with no customization
 

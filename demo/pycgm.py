@@ -1,18 +1,10 @@
 import numpy as np
 import IO
 import multiprocessing as mp
-import mmap
-import json
-import tempfile 
-import errno 
-import os 
-import math 
-
-
 
 class CGM:
 
-    def __init__(self, static_path=None, dynamic_path=None, vsk_path=None, trial=0, ncores = 5):
+    def __init__(self, static_path=None, dynamic_path=None, vsk_path=None, trial=0, ncores = 1):
         self.static_path = static_path
         self.dynamic_path = dynamic_path
         self.vsk_path = vsk_path
@@ -84,8 +76,8 @@ class CGM:
         mmap, mi, oi = info['mappings']
 
         result = IO.readResult()
-
-        for i, frame in enumerate(data):
+        for i in range(start,end):
+            frame = data[i]
             pelv = frame[mi[mmap["PELV"]]]
             result[i][oi["Pelvis"]] = pel(pelv)
             rhip = frame[mi[mmap["RHIP"]]]
@@ -94,7 +86,7 @@ class CGM:
             rkne = frame[mi[mmap["RKNE"]]]
             lkne = frame[mi[mmap["LKNE"]]]
             result[i][oi["Knee"]] = kne(rkne, lkne)
-            
+        
         IO.modifyResult(start, end, result)
 
     @staticmethod
