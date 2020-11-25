@@ -1,5 +1,16 @@
 import numpy as np
+import pickle
 
+def writeMem(methods, mappings):
+    pickle_out = open("data.pickle","wb")
+
+    info = {"methods": methods, "mappings": mappings}
+    pickle.dump(info, pickle_out)
+    pickle_out.close()
+
+def readMem():
+    pickle_in = open("data.pickle","rb")
+    return pickle.load(pickle_in)
 
 # default amount of markers (5)
 example0 = np.array([[[0, 1, 2], [10, 10, 10], [8, 8, 8], [5, 5, 5], [5, 5, 5]],
@@ -28,3 +39,4 @@ ex3markers = "PELVIS RHIP LHIP RKNEE LKNEE RANK".split()
 
 trials = [(example0, ex0markers), (example1, ex1markers), (example2, ex2markers), (example3, ex3markers),
           (example0, ex0markers), (example0, ex0markers)]
+

@@ -1,14 +1,23 @@
 import numpy as np
-from demo.IO import trials
+import IO
+import multiprocessing as mp
+import mmap
+import json
+import tempfile 
+import errno 
+import os 
+import math 
+
 
 
 class CGM:
 
-    def __init__(self, static_path=None, dynamic_path=None, vsk_path=None, trial=0):
+    def __init__(self, static_path=None, dynamic_path=None, vsk_path=None, trial=0, ncores = 1):
         self.static_path = static_path
         self.dynamic_path = dynamic_path
         self.vsk_path = vsk_path
         self.trial = trial
+        self.ncores = ncores
         self.all_angles = None
         self.all_axes = None
         self.offsets = None
@@ -17,7 +26,7 @@ class CGM:
         self.output_index = {"Pelvis": 0, "Hip": 1, "Knee": 2}
 
     def run(self, static=None):
-        data, markers = trials[self.trial]  # Substitute for loading in data from c3d
+        data, markers = IO.trials[self.trial]  # Substitute for loading in data from c3d
 
         # Associate each marker name with its index
         for i, marker in enumerate(markers):
@@ -26,9 +35,10 @@ class CGM:
         if not static:
             static = StaticCGM(self.static_path, self.vsk_path)
 
-        result = self.calc(data,
+        result = self.multiCalc(data,
                            (self.pelvis_calc, self.hip_calc, self.knee_calc),
-                           (self.mapping, self.marker_index, self.output_index))
+                           (self.mapping, self.marker_index, self.output_index),
+                           self.ncores)
         self.all_angles = result
 
     def map(self, old=None, new=None, dic=None):
@@ -66,14 +76,12 @@ class CGM:
     @staticmethod
     def knee_calc(rkne, lkne):
         return rkne - lkne
-
+    
     @staticmethod
-    def calc(data, methods, mappings):
-        pel, hip, kne = methods
-        mmap, mi, oi = mappings
-
-        # mechanism responsible for changing size of output array
-        result = np.zeros((len(data), len(oi), 3), dtype=int)
+    def calc(data, result):
+        info = IO.readMem()
+        pel, hip, kne = info['methods']
+        mmap, mi, oi = info['mappings']
 
         for i, frame in enumerate(data):
             pelv = frame[mi[mmap["PELV"]]]
@@ -84,7 +92,36 @@ class CGM:
             rkne = frame[mi[mmap["RKNE"]]]
             lkne = frame[mi[mmap["LKNE"]]]
             result[i][oi["Knee"]] = kne(rkne, lkne)
-        return result
+
+    @staticmethod
+    #Could also have VSK, offset, start, and end here. 
+    def multiCalc(data, methods, mappings, ncores):
+        # mechanism responsible for changing size of output array
+        result = np.zeros((len(data), len(mappings[2]), 3), dtype=int)
+
+        # Data in this case would be changed upon furhter implementation.
+        print(len(data))
+        length = int(len(data)/ncores)
+
+        # Hold all the processes together for asynchronize running and joining
+        processes = []
+        IO.writeMem(methods, mappings)
+
+        for c in range(ncores):
+            first = c * length
+            last = (c+1) * length
+
+            if c == ncores - 1:
+                last = len(data)
+
+            proc = mp.Process(target=CGM.calc, args=[data, result])
+            proc.start()
+            processes.append(proc)
+
+        for process in processes:
+            process.join()
+    
+            
 
 
 class StaticCGM:
