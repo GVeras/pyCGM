@@ -60,7 +60,7 @@ class CGM:
 
     @staticmethod
     def pelvis_calc(pelv):
-        time.sleep(0.001)
+        time.sleep(0.01)
         return pelv
 
     @staticmethod
@@ -73,7 +73,7 @@ class CGM:
     
     @staticmethod
     def calc(start, end, data):
-        info = IO.readMem()
+        info = IO.readInfo()
         pel, hip, kne = info['methods']
         mmap, mi, oi = info['mappings']
 
@@ -100,7 +100,7 @@ class CGM:
         length = int(len(data)/ncores)
         # Hold all the processes together for asynchronize running and joining
         processes = []
-        IO.writeMem(methods, mappings)
+        IO.writeInfo(methods, mappings)
         
         for c in range(ncores):
             start = c * length

@@ -4,7 +4,10 @@ import time
 # Demonstrates basic case with no customization
 
 if __name__ == "__main__":
-    subject0 = CGM(trial=0)
-    subject0.run()
-    print("Trial 0 pelvis angles at each frame with no modification\n", subject0.pelvis_angles, "\n")
+    for x in range(1,9):
+        subject0 = CGM(trial=0, ncores=x)
+        start = time.time()
+        subject0.run()
+        end = time.time()
 
+        print(f"Time elapsed using {x} core(s): {end-start}")

@@ -1,14 +1,14 @@
 import numpy as np
 import pickle
 
-def writeMem(methods, mappings):
+def writeInfo(methods, mappings):
     pickle_out = open("data.pickle","wb")
 
     info = {"methods": methods, "mappings": mappings}
     pickle.dump(info, pickle_out)
     pickle_out.close()
 
-def readMem():
+def readInfo():
     pickle_in = open("data.pickle","rb")
     return pickle.load(pickle_in)
 
@@ -16,6 +16,7 @@ def writeResult(dataLen,mappingsLen):
     pickle_out = open("result.pickle","wb")
     # mechanism responsible for changing size of output array
     result = np.zeros((dataLen, mappingsLen, 3), dtype=int)
+
     pickle.dump(result, pickle_out)
     pickle_out.close()
 
