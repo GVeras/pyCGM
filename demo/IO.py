@@ -12,6 +12,24 @@ def readMem():
     pickle_in = open("data.pickle","rb")
     return pickle.load(pickle_in)
 
+def writeResult(dataLen,mappingsLen):
+    pickle_out = open("result.pickle","wb")
+    # mechanism responsible for changing size of output array
+    result = np.zeros((dataLen, mappingsLen, 3), dtype=int)
+    pickle.dump(result, pickle_out)
+    pickle_out.close()
+
+def modifyResult(start, end, res):
+    currentResult = readResult()
+
+    currentResult[start:end] = res
+    pickle_out = open("result.pickle","wb")
+    pickle.dump(currentResult, pickle_out)
+    pickle_out.close()
+
+def readResult():
+    return pickle.load(open("result.pickle","rb"))
+
 # default amount of markers (5)
 example0 = np.array([[[0, 1, 2], [10, 10, 10], [8, 8, 8], [5, 5, 5], [5, 5, 5]],
                      [[3, 4, 5], [9, 9, 9], [7, 7, 7], [4, 4, 4], [4, 4, 4]],

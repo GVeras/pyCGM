@@ -12,7 +12,7 @@ import math
 
 class CGM:
 
-    def __init__(self, static_path=None, dynamic_path=None, vsk_path=None, trial=0, ncores = 1):
+    def __init__(self, static_path=None, dynamic_path=None, vsk_path=None, trial=0, ncores = 5):
         self.static_path = static_path
         self.dynamic_path = dynamic_path
         self.vsk_path = vsk_path
@@ -78,10 +78,12 @@ class CGM:
         return rkne - lkne
     
     @staticmethod
-    def calc(data, result):
+    def calc(start, end, data):
         info = IO.readMem()
         pel, hip, kne = info['methods']
         mmap, mi, oi = info['mappings']
+
+        result = IO.readResult()
 
         for i, frame in enumerate(data):
             pelv = frame[mi[mmap["PELV"]]]
@@ -92,21 +94,21 @@ class CGM:
             rkne = frame[mi[mmap["RKNE"]]]
             lkne = frame[mi[mmap["LKNE"]]]
             result[i][oi["Knee"]] = kne(rkne, lkne)
+            
+        IO.modifyResult(start, end, result)
 
     @staticmethod
     #Could also have VSK, offset, start, and end here. 
     def multiCalc(data, methods, mappings, ncores):
-        # mechanism responsible for changing size of output array
-        result = np.zeros((len(data), len(mappings[2]), 3), dtype=int)
+        IO.writeResult(len(data), len(mappings[2]))
 
         # Data in this case would be changed upon furhter implementation.
-        print(len(data))
         length = int(len(data)/ncores)
 
         # Hold all the processes together for asynchronize running and joining
         processes = []
         IO.writeMem(methods, mappings)
-
+        
         for c in range(ncores):
             first = c * length
             last = (c+1) * length
@@ -114,14 +116,14 @@ class CGM:
             if c == ncores - 1:
                 last = len(data)
 
-            proc = mp.Process(target=CGM.calc, args=[data, result])
+            proc = mp.Process(target=CGM.calc, args=[first, last, data])
             proc.start()
             processes.append(proc)
 
         for process in processes:
             process.join()
         
-        return result
+        return IO.readResult()
             
 
 
